@@ -1,0 +1,35 @@
+appId: com.c0lor-mem.app
+productName: c0lor-mem
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - out/**/*
+  - "!node_modules/**/*"
+extraResources:
+  - from: resources/icc-profiles
+    to: icc-profiles
+  - from: python/dist/c0lor-mem-backend
+    to: python-backend
+  - from: resources/ffmpeg/${os}
+    to: ffmpeg
+    filter:
+      - "**/*"
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: resources/icon.ico
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: resources/icon.icns
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
