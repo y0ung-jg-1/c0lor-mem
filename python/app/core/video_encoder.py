@@ -20,7 +20,7 @@ import tempfile
 import numpy as np
 from PIL import Image
 from app.core.models import GenerateRequest, ExportFormat, ColorSpace, HdrMode
-from app.core.pq import srgb_eotf, pq_oetf, image_to_pq_rgb48
+from app.core.pq import image_to_pq_rgb48
 
 
 def find_ffmpeg() -> str | None:
@@ -44,13 +44,6 @@ def find_ffmpeg() -> str | None:
     return None
 
 
-# ---------------------------------------------------------------------------
-# PQ (SMPTE ST 2084) conversion — imported from app.core.pq
-# ---------------------------------------------------------------------------
-
-_srgb_eotf = srgb_eotf
-_pq_oetf = pq_oetf
-_image_to_pq_rgb48 = image_to_pq_rgb48
 
 
 # ---------------------------------------------------------------------------
@@ -230,7 +223,7 @@ def _export_hdr(
       3. FFmpeg converts RGB48 → yuv420p10le and encodes with HDR metadata
     """
     peak = request.hdr_video_peak_nits
-    frame_bytes, w, h = _image_to_pq_rgb48(img, peak)
+    frame_bytes, w, h = image_to_pq_rgb48(img, peak)
 
     fps_out = 30
     duration = 5

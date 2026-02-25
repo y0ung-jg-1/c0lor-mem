@@ -35,7 +35,7 @@ def _broadcast_progress(batch_id: str, status: BatchStatus) -> None:
     for ws in _ws_clients:
         try:
             import asyncio
-            asyncio.get_event_loop().create_task(ws.send_text(message))
+            asyncio.get_running_loop().create_task(ws.send_text(message))
         except Exception:
             disconnected.add(ws)
     _ws_clients -= disconnected
@@ -70,7 +70,8 @@ async def preview(request: PreviewRequest):
 @router.post("/generate", response_model=GenerateResponse)
 async def generate(request: GenerateRequest):
     """Generate a single test pattern image."""
-    return export_single(request)
+    import asyncio
+    return await asyncio.to_thread(export_single, request)
 
 
 @router.post("/batch", response_model=BatchResponse, status_code=202)

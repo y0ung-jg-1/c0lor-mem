@@ -118,12 +118,7 @@ def _save_heif(img: Image.Image, filepath: str, icc_data: bytes | None = None) -
     except ImportError:
         raise RuntimeError("pillow-heif is required for HEIF export")
 
-    img.save(filepath, format="HEIF", quality=95)
+    save_kw: dict = {"format": "HEIF", "quality": 95}
     if icc_data:
-        try:
-            from pillow_heif import open_heif
-            heif_file = open_heif(filepath)
-            heif_file.info["icc_profile"] = icc_data
-            heif_file.save(filepath, quality=95)
-        except Exception:
-            pass
+        save_kw["icc_profile"] = icc_data
+    img.save(filepath, **save_kw)

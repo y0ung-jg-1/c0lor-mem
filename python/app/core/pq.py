@@ -39,11 +39,11 @@ def pq_oetf(L: np.ndarray) -> np.ndarray:
     return np.power((c1 + c2 * Lm1) / (1 + c3 * Lm1), m2)
 
 
-def image_to_pq_rgb48(img: Image.Image, peak_nits: int) -> tuple[bytes, int, int]:
+def _srgb_to_pq_uint16(img: Image.Image, peak_nits: int) -> np.ndarray:
     """
-    Convert an sRGB image to PQ-encoded RGB48LE raw frame data.
+    Convert an sRGB image to PQ-encoded uint16 array.
 
-    Returns (raw_bytes, width, height).
+    Returns numpy array of shape (H, W, 3), dtype uint16.
     """
     rgb = img.convert("RGB")
     arr = np.array(rgb).astype(np.float64) / 255.0
@@ -54,12 +54,18 @@ def image_to_pq_rgb48(img: Image.Image, peak_nits: int) -> tuple[bytes, int, int
     # Scale to absolute luminance, normalise to PQ reference (10 000 nits)
     L = np.clip(linear * (peak_nits / 10000.0), 0.0, 1.0)
 
-    # Linear → PQ signal
+    # Linear → PQ signal → 16-bit
     pq = pq_oetf(L)
+    return np.clip(pq * 65535.0, 0, 65535).astype(np.uint16)
 
-    # Quantise to 16-bit (numpy native little-endian on x86)
-    arr16 = np.clip(pq * 65535.0, 0, 65535).astype(np.uint16)
 
+def image_to_pq_rgb48(img: Image.Image, peak_nits: int) -> tuple[bytes, int, int]:
+    """
+    Convert an sRGB image to PQ-encoded RGB48LE raw frame data.
+
+    Returns (raw_bytes, width, height).
+    """
+    arr16 = _srgb_to_pq_uint16(img, peak_nits)
     h, w = arr16.shape[:2]
     return arr16.tobytes(), w, h
 
@@ -114,17 +120,11 @@ def save_pq_png(
       3. Insert cICP chunk (BT.2020 + PQ transfer)
       4. Optionally insert iCCP chunk with ICC profile
     """
-    rgb = img.convert("RGB")
-    arr = np.array(rgb).astype(np.float64) / 255.0
-
-    # sRGB → linear → PQ
-    linear = srgb_eotf(arr)
-    L = np.clip(linear * (peak_nits / 10000.0), 0.0, 1.0)
-    pq = pq_oetf(L)
-
-    # Quantise to 16-bit big-endian (PNG uses network byte order)
-    arr16 = np.clip(pq * 65535.0, 0, 65535).astype(np.uint16)
+    arr16 = _srgb_to_pq_uint16(img, peak_nits)
     h, w = arr16.shape[:2]
+
+    # Convert to big-endian (PNG uses network byte order)
+    arr16_be = arr16.byteswap()
 
     # Build PNG file manually
     png_signature = b"\x89PNG\r\n\x1a\n"
@@ -140,13 +140,13 @@ def save_pq_png(
     iccp_chunk = _make_iccp_chunk(icc_data) if icc_data else b""
 
     # IDAT: scanlines with filter byte 0 (None) per row
-    # PNG stores 16-bit values in big-endian
+    # Prepend a zero filter byte to each row using numpy
+    row_bytes = arr16_be.reshape(h, -1).tobytes()
+    stride = w * 3 * 2  # bytes per row (3 channels × 2 bytes)
     raw_rows = bytearray()
     for y in range(h):
         raw_rows.append(0)  # filter byte: None
-        for x in range(w):
-            for c in range(3):
-                raw_rows.extend(struct.pack(">H", int(arr16[y, x, c])))
+        raw_rows.extend(row_bytes[y * stride : (y + 1) * stride])
 
     compressed = zlib.compress(bytes(raw_rows), 9)
     idat_chunk = _png_chunk(b"IDAT", compressed)

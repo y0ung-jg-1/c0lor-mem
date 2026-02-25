@@ -2,7 +2,7 @@
 
 为显示领域自媒体人打造的测试图像生成桌面工具。
 
-当前模块：**APL 测试图生成器** —— 输入屏幕分辨率，生成 1%\~100% 白色占比的测试图（黑底白色图形），支持多种色彩空间、HDR Gain Map 导出、静帧视频导出。
+当前模块：**APL 测试图生成器** —— 输入屏幕分辨率，生成 1%\~100% 白色占比的测试图（黑底白色图形），支持多种色彩空间、HDR 导出、静帧视频导出。
 
 ## 功能特性
 
@@ -10,8 +10,9 @@
 - **28+ 设备预设**：iPhone、Samsung、Xiaomi、Pixel、HUAWEI 等主流机型分辨率
 - **色彩空间**：sRGB (Rec.709)、Display P3、Rec.2020，自动嵌入 ICC Profile
 - **导出格式**：PNG、JPEG、HEIF、H.264 视频、H.265 视频
-- **HDR 支持**：Apple Gain Map (MPF JPEG / HEIF)、Ultra HDR (Android)、10-bit PQ 视频
+- **HDR 支持**：Ultra HDR (ISO 21496-1 / Android)、HDR10 PQ 16-bit PNG、10-bit PQ 视频 (H.264/H.265)
 - **批量导出**：自定义 APL 范围和步长，WebSocket 实时进度，支持取消
+- **格式联动**：HDR 模式自动限制可用导出格式（Ultra HDR → JPEG、HDR10 PQ → PNG/H.264/H.265）
 - **跨平台**：Windows + macOS
 
 ## 技术栈
@@ -24,6 +25,16 @@
 | 图像处理 | Pillow + pillow-heif + colour-science |
 | 视频编码 | FFmpeg (子进程调用) |
 | 打包 | PyInstaller (Python) + electron-builder (Electron) |
+
+## HDR 模式
+
+| 模式 | 说明 | 允许的导出格式 |
+|------|------|---------------|
+| SDR (`none`) | 标准动态范围 | PNG、JPEG、HEIF、H.264、H.265 |
+| Ultra HDR (`ultra-hdr`) | ISO 21496-1，JPEG 内嵌 Gain Map（1/4 降采样），Android 兼容 | JPEG |
+| HDR10 PQ (`hdr10-pq`) | SMPTE ST 2084 PQ 传输函数，BT.2020 色域 | PNG (16-bit cICP)、H.264、H.265 (10-bit) |
+
+> Apple Gain Map 已在 v0.1.0 移除（pillow-heif 无法写入 gain map 辅助图像，MakerApple EXIF 标签不稳定）。
 
 ## 环境要求
 
@@ -141,7 +152,7 @@ c0lor-mem/
 │   ├── app/
 │   │   ├── main.py                  # FastAPI 入口
 │   │   ├── api/modules/             # API 端点
-│   │   ├── core/                    # 图案生成、色彩空间、HDR、视频
+│   │   ├── core/                    # 图案生成、色彩空间、HDR、PQ、视频
 │   │   └── services/                # 导出服务、批量服务
 │   ├── tests/                       # pytest 测试
 │   ├── pyproject.toml

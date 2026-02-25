@@ -93,6 +93,7 @@ async def _execute_batch(
                 color_space=request.color_space,
                 hdr_mode=request.hdr_mode,
                 hdr_peak_nits=request.hdr_peak_nits,
+                hdr_video_peak_nits=request.hdr_video_peak_nits,
                 export_format=request.export_format,
                 output_directory=request.output_directory,
             )
