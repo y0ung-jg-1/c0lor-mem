@@ -46,14 +46,25 @@ app.whenReady().then(async () => {
 
   registerIpcHandlers()
 
-  pythonBridge = new PythonBridge()
-  await pythonBridge.start()
-
+  // Create window first so user sees UI immediately
   createWindow()
 
+  // Start Python backend in background
+  pythonBridge = new PythonBridge()
+  pythonBridge.start().then(() => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('python-backend-url', pythonBridge!.getBaseUrl())
+    }
+  }).catch((err) => {
+    console.error('Failed to start Python backend:', err)
+  })
+
+  // Also send URL when renderer reloads (HMR in dev)
   if (mainWindow) {
     mainWindow.webContents.on('did-finish-load', () => {
-      mainWindow!.webContents.send('python-backend-url', pythonBridge!.getBaseUrl())
+      if (pythonBridge?.getIsRunning()) {
+        mainWindow!.webContents.send('python-backend-url', pythonBridge!.getBaseUrl())
+      }
     })
   }
 })

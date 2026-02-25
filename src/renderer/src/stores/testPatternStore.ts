@@ -2,7 +2,7 @@ import { create } from 'zustand'
 
 export type Shape = 'rectangle' | 'circle'
 export type ColorSpace = 'rec709' | 'displayP3' | 'rec2020'
-export type HdrMode = 'none' | 'apple-gainmap' | 'ultra-hdr'
+export type HdrMode = 'none' | 'ultra-hdr' | 'hdr10-pq'
 export type ExportFormat = 'png' | 'jpeg' | 'heif' | 'h264' | 'h265'
 
 export interface TestPatternConfig {
@@ -13,6 +13,7 @@ export interface TestPatternConfig {
   colorSpace: ColorSpace
   hdrMode: HdrMode
   hdrPeakNits: number
+  hdrVideoPeakNits: number
   exportFormat: ExportFormat
   outputDirectory: string
 }
@@ -25,6 +26,7 @@ interface TestPatternState extends TestPatternConfig {
   setColorSpace: (cs: ColorSpace) => void
   setHdrMode: (mode: HdrMode) => void
   setHdrPeakNits: (nits: number) => void
+  setHdrVideoPeakNits: (nits: number) => void
   setExportFormat: (fmt: ExportFormat) => void
   setOutputDirectory: (dir: string) => void
   setIsGenerating: (generating: boolean) => void
@@ -38,6 +40,7 @@ export const useTestPatternStore = create<TestPatternState>((set) => ({
   colorSpace: 'rec709',
   hdrMode: 'none',
   hdrPeakNits: 1000,
+  hdrVideoPeakNits: 10000,
   exportFormat: 'png',
   outputDirectory: '',
   isGenerating: false,
@@ -47,6 +50,7 @@ export const useTestPatternStore = create<TestPatternState>((set) => ({
   setColorSpace: (colorSpace) => set({ colorSpace }),
   setHdrMode: (hdrMode) => set({ hdrMode }),
   setHdrPeakNits: (hdrPeakNits) => set({ hdrPeakNits }),
+  setHdrVideoPeakNits: (hdrVideoPeakNits) => set({ hdrVideoPeakNits }),
   setExportFormat: (exportFormat) => set({ exportFormat }),
   setOutputDirectory: (outputDirectory) => set({ outputDirectory }),
   setIsGenerating: (isGenerating) => set({ isGenerating })

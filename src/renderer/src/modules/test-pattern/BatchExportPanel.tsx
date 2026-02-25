@@ -70,6 +70,7 @@ export function BatchExportPanel(): React.ReactElement {
         color_space: store.colorSpace,
         hdr_mode: store.hdrMode,
         hdr_peak_nits: store.hdrPeakNits,
+        hdr_video_peak_nits: store.hdrVideoPeakNits,
         export_format: store.exportFormat,
         output_directory: store.outputDirectory,
       })

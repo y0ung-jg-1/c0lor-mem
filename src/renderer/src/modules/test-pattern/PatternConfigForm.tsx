@@ -5,10 +5,26 @@ import { useAppStore } from '../../stores/appStore'
 import { apiClient } from '../../api/client'
 import { devicePresets } from '../../utils/device-presets'
 
+const FORMAT_BY_HDR: Record<HdrMode, ExportFormat[]> = {
+  'none': ['png', 'jpeg', 'heif', 'h264', 'h265'],
+  'ultra-hdr': ['jpeg'],
+  'hdr10-pq': ['png', 'h264', 'h265'],
+}
+
 export function PatternConfigForm(): React.ReactElement {
   const store = useTestPatternStore()
   const { backendReady } = useAppStore()
   const { message } = App.useApp()
+
+  const allowedFormats = FORMAT_BY_HDR[store.hdrMode]
+
+  const handleHdrModeChange = (mode: HdrMode): void => {
+    store.setHdrMode(mode)
+    const allowed = FORMAT_BY_HDR[mode]
+    if (!allowed.includes(store.exportFormat)) {
+      store.setExportFormat(allowed[0])
+    }
+  }
 
   const handlePresetChange = (value: string): void => {
     if (value === 'custom') return
@@ -40,6 +56,7 @@ export function PatternConfigForm(): React.ReactElement {
         color_space: store.colorSpace,
         hdr_mode: store.hdrMode,
         hdr_peak_nits: store.hdrPeakNits,
+        hdr_video_peak_nits: store.hdrVideoPeakNits,
         export_format: store.exportFormat,
         output_directory: store.outputDirectory
       })
@@ -154,19 +171,31 @@ export function PatternConfigForm(): React.ReactElement {
         <Form.Item label="HDR 模式">
           <Radio.Group
             value={store.hdrMode}
-            onChange={(e) => store.setHdrMode(e.target.value as HdrMode)}
+            onChange={(e) => handleHdrModeChange(e.target.value as HdrMode)}
             optionType="button"
             buttonStyle="solid"
             options={[
               { label: 'SDR', value: 'none' },
-              { label: 'Apple Gain Map', value: 'apple-gainmap' },
-              { label: 'Ultra HDR', value: 'ultra-hdr' }
+              { label: 'Ultra HDR', value: 'ultra-hdr' },
+              { label: 'HDR10 PQ', value: 'hdr10-pq' },
             ]}
           />
         </Form.Item>
 
-        {/* 峰值亮度 - 仅 HDR 模式显示 */}
-        {store.hdrMode !== 'none' && (
+        {/* 峰值亮度 - HDR10 PQ 始终显示视频峰值亮度，Ultra HDR 显示图片峰值亮度 */}
+        {store.hdrMode === 'hdr10-pq' && (
+          <Form.Item label={`峰值亮度：${store.hdrVideoPeakNits} nits`}>
+            <Slider
+              min={200}
+              max={10000}
+              step={100}
+              value={store.hdrVideoPeakNits}
+              onChange={(v) => store.setHdrVideoPeakNits(v)}
+              marks={{ 1000: '1000', 4000: '4000', 10000: '10000' }}
+            />
+          </Form.Item>
+        )}
+        {store.hdrMode === 'ultra-hdr' && (
           <Form.Item label={`峰值亮度：${store.hdrPeakNits} nits`}>
             <Slider
               min={200}
@@ -187,11 +216,11 @@ export function PatternConfigForm(): React.ReactElement {
             optionType="button"
             buttonStyle="solid"
             options={[
-              { label: 'PNG', value: 'png' },
-              { label: 'JPEG', value: 'jpeg' },
-              { label: 'HEIF', value: 'heif' },
-              { label: 'H.264', value: 'h264' },
-              { label: 'H.265', value: 'h265' },
+              { label: 'PNG', value: 'png', disabled: !allowedFormats.includes('png') },
+              { label: 'JPEG', value: 'jpeg', disabled: !allowedFormats.includes('jpeg') },
+              { label: 'HEIF', value: 'heif', disabled: !allowedFormats.includes('heif') },
+              { label: 'H.264', value: 'h264', disabled: !allowedFormats.includes('h264') },
+              { label: 'H.265', value: 'h265', disabled: !allowedFormats.includes('h265') },
             ]}
           />
         </Form.Item>

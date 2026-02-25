@@ -17,7 +17,10 @@ def _build_filename(request: GenerateRequest) -> str:
     ]
     if request.hdr_mode.value != "none":
         parts.append(request.hdr_mode.value)
-        parts.append(f"{request.hdr_peak_nits}nits")
+        if request.hdr_mode == HdrMode.HDR10_PQ:
+            parts.append(f"{request.hdr_video_peak_nits}nits")
+        else:
+            parts.append(f"{request.hdr_peak_nits}nits")
     return "_".join(parts)
 
 
@@ -40,25 +43,30 @@ def export_single(request: GenerateRequest) -> GenerateResponse:
     fmt = request.export_format
     hdr = request.hdr_mode
 
-    # HDR image export (JPEG/HEIF with gain map)
-    if hdr != HdrMode.NONE and fmt in (ExportFormat.PNG, ExportFormat.JPEG, ExportFormat.HEIF):
-        filepath = _export_hdr_image(img, request, filename, icc_data)
-
-    # Video export
-    elif fmt in (ExportFormat.H264, ExportFormat.H265):
+    # ---- Video export ----
+    if fmt in (ExportFormat.H264, ExportFormat.H265):
         from app.core.video_encoder import export_video
         filepath = export_video(img, request)
 
-    # Standard SDR image export
+    # ---- PNG ----
     elif fmt == ExportFormat.PNG:
-        filepath = os.path.join(request.output_directory, f"{filename}.png")
-        img.save(filepath, "PNG", icc_profile=icc_data)
+        if hdr == HdrMode.HDR10_PQ:
+            filepath = _export_pq_png(img, request, filename, icc_data)
+        else:
+            filepath = os.path.join(request.output_directory, f"{filename}.png")
+            img.save(filepath, "PNG", icc_profile=icc_data)
 
+    # ---- JPEG ----
     elif fmt == ExportFormat.JPEG:
-        filepath = os.path.join(request.output_directory, f"{filename}.jpg")
-        img.save(filepath, "JPEG", quality=98, icc_profile=icc_data)
+        if hdr == HdrMode.ULTRA_HDR:
+            filepath = _export_ultra_hdr_jpeg(img, request, filename, icc_data)
+        else:
+            filepath = os.path.join(request.output_directory, f"{filename}.jpg")
+            img.save(filepath, "JPEG", quality=98, icc_profile=icc_data)
 
+    # ---- HEIF ----
     elif fmt == ExportFormat.HEIF:
+        # Ultra HDR is JPEG-only; for HEIF just save standard HEIF
         filepath = os.path.join(request.output_directory, f"{filename}.heic")
         _save_heif(img, filepath, icc_data)
 
@@ -70,42 +78,37 @@ def export_single(request: GenerateRequest) -> GenerateResponse:
     return GenerateResponse(output_path=filepath, file_size=file_size)
 
 
-def _export_hdr_image(
+# ---------------------------------------------------------------------------
+# HDR image helpers
+# ---------------------------------------------------------------------------
+
+def _export_ultra_hdr_jpeg(
     img: Image.Image,
     request: GenerateRequest,
     filename: str,
     icc_data: bytes | None,
 ) -> str:
-    """Export HDR image with gain map."""
-    from app.core.hdr_gainmap import (
-        create_apple_gainmap_jpeg,
-        create_apple_gainmap_heif,
-        create_ultra_hdr_jpeg,
-    )
-
-    hdr = request.hdr_mode
-    fmt = request.export_format
-
-    if hdr == HdrMode.APPLE_GAINMAP:
-        if fmt == ExportFormat.HEIF:
-            filepath = os.path.join(request.output_directory, f"{filename}.heic")
-            create_apple_gainmap_heif(img, request.hdr_peak_nits, filepath, icc_data)
-        else:
-            # Default to JPEG for Apple gain map
-            filepath = os.path.join(request.output_directory, f"{filename}.jpg")
-            create_apple_gainmap_jpeg(img, request.hdr_peak_nits, filepath, icc_data)
-
-    elif hdr == HdrMode.ULTRA_HDR:
-        filepath = os.path.join(request.output_directory, f"{filename}.jpg")
-        create_ultra_hdr_jpeg(img, request.hdr_peak_nits, filepath, icc_data)
-
-    else:
-        # Fallback SDR
-        filepath = os.path.join(request.output_directory, f"{filename}.png")
-        img.save(filepath, "PNG", icc_profile=icc_data)
-
+    from app.core.hdr_gainmap import create_ultra_hdr_jpeg
+    filepath = os.path.join(request.output_directory, f"{filename}.jpg")
+    create_ultra_hdr_jpeg(img, request.hdr_peak_nits, filepath, icc_data)
     return filepath
 
+
+def _export_pq_png(
+    img: Image.Image,
+    request: GenerateRequest,
+    filename: str,
+    icc_data: bytes | None,
+) -> str:
+    from app.core.pq import save_pq_png
+    filepath = os.path.join(request.output_directory, f"{filename}.png")
+    save_pq_png(img, request.hdr_video_peak_nits, filepath, icc_data)
+    return filepath
+
+
+# ---------------------------------------------------------------------------
+# HEIF save helper
+# ---------------------------------------------------------------------------
 
 def _save_heif(img: Image.Image, filepath: str, icc_data: bytes | None = None) -> None:
     """Save image as HEIF with ICC profile."""

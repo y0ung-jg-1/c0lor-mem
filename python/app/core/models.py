@@ -16,8 +16,8 @@ class ColorSpace(str, Enum):
 
 class HdrMode(str, Enum):
     NONE = "none"
-    APPLE_GAINMAP = "apple-gainmap"
     ULTRA_HDR = "ultra-hdr"
+    HDR10_PQ = "hdr10-pq"
 
 
 class ExportFormat(str, Enum):
@@ -35,7 +35,8 @@ class GenerateRequest(BaseModel):
     shape: Shape = Shape.RECTANGLE
     color_space: ColorSpace = ColorSpace.REC709
     hdr_mode: HdrMode = HdrMode.NONE
-    hdr_peak_nits: int = Field(default=1000, ge=200, le=10000)
+    hdr_peak_nits: int = Field(default=1000, ge=200, le=4000)
+    hdr_video_peak_nits: int = Field(default=10000, ge=200, le=10000)
     export_format: ExportFormat = ExportFormat.PNG
     output_directory: str = ""
 
@@ -61,7 +62,8 @@ class BatchRequest(BaseModel):
     shape: Shape = Shape.RECTANGLE
     color_space: ColorSpace = ColorSpace.REC709
     hdr_mode: HdrMode = HdrMode.NONE
-    hdr_peak_nits: int = Field(default=1000, ge=200, le=10000)
+    hdr_peak_nits: int = Field(default=1000, ge=200, le=4000)
+    hdr_video_peak_nits: int = Field(default=10000, ge=200, le=10000)
     export_format: ExportFormat = ExportFormat.PNG
     output_directory: str = ""
 

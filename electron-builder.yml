@@ -9,10 +9,10 @@ files:
 extraResources:
   - from: resources/icc-profiles
     to: icc-profiles
+    filter:
+      - "**/*"
   - from: python/dist/c0lor-mem-backend
     to: python-backend
-  - from: resources/ffmpeg/${os}
-    to: ffmpeg
     filter:
       - "**/*"
 win:
@@ -20,14 +20,12 @@ win:
     - target: nsis
       arch:
         - x64
-  icon: resources/icon.ico
 mac:
   target:
     - target: dmg
       arch:
         - x64
         - arm64
-  icon: resources/icon.icns
   entitlements: resources/entitlements.mac.plist
   entitlementsInherit: resources/entitlements.mac.plist
 nsis:
