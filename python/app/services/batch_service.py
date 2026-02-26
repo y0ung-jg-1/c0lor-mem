@@ -1,6 +1,7 @@
 """Batch export service: handles batch generation with progress reporting."""
 
 import asyncio
+import time
 import uuid
 from typing import Callable
 from app.core.models import (
@@ -13,6 +14,11 @@ from app.services.export_service import export_single
 # In-memory batch job registry
 _batch_jobs: dict[str, BatchStatus] = {}
 _batch_cancel: dict[str, bool] = {}
+_batch_created: dict[str, float] = {}
+
+# Keep the registry bounded; this is a local tool, not a long-running server.
+_MAX_JOBS = 50
+_MAX_JOB_AGE_SECONDS = 60 * 60
 
 # Progress callback type: (batch_id, status) -> None
 ProgressCallback = Callable[[str, BatchStatus], None] | None
@@ -28,6 +34,34 @@ def set_progress_callback(callback: ProgressCallback) -> None:
 
 def get_batch_status(batch_id: str) -> BatchStatus | None:
     return _batch_jobs.get(batch_id)
+
+def _prune_jobs() -> None:
+    """Prune old/completed jobs to avoid unbounded memory growth."""
+    now = time.time()
+
+    # Remove old finished jobs.
+    for batch_id, created in list(_batch_created.items()):
+        status = _batch_jobs.get(batch_id)
+        if not status:
+            _batch_created.pop(batch_id, None)
+            _batch_cancel.pop(batch_id, None)
+            continue
+        if status.status != "running" and now - created > _MAX_JOB_AGE_SECONDS:
+            _batch_jobs.pop(batch_id, None)
+            _batch_cancel.pop(batch_id, None)
+            _batch_created.pop(batch_id, None)
+
+    # Cap total number of jobs, preferring to keep running ones.
+    if len(_batch_jobs) <= _MAX_JOBS:
+        return
+    for batch_id in list(_batch_jobs.keys()):
+        status = _batch_jobs.get(batch_id)
+        if status and status.status != "running":
+            _batch_jobs.pop(batch_id, None)
+            _batch_cancel.pop(batch_id, None)
+            _batch_created.pop(batch_id, None)
+            if len(_batch_jobs) <= _MAX_JOBS:
+                break
 
 
 def cancel_batch(batch_id: str) -> bool:
@@ -59,6 +93,8 @@ async def run_batch(request: BatchRequest) -> BatchResponse:
     )
     _batch_jobs[batch_id] = status
     _batch_cancel[batch_id] = False
+    _batch_created[batch_id] = time.time()
+    _prune_jobs()
 
     # Run batch in background
     asyncio.create_task(_execute_batch(batch_id, request, apl_values))
@@ -113,6 +149,7 @@ async def _execute_batch(
 
     # Cleanup cancel flag
     _batch_cancel.pop(batch_id, None)
+    _prune_jobs()
 
 
 def _notify_progress(batch_id: str, status: BatchStatus) -> None:

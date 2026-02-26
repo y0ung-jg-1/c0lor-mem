@@ -1,11 +1,16 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+export interface BackendInfo {
+  url: string
+  token: string
+}
+
 export interface ElectronAPI {
   openDirectory: () => Promise<string | null>
   saveFile: (options: { defaultPath?: string; filters?: { name: string; extensions: string[] }[] }) => Promise<string | null>
   openPath: (path: string) => Promise<void>
   showItemInFolder: (path: string) => void
-  onBackendUrl: (callback: (url: string) => void) => void
+  onBackendInfo: (callback: (info: BackendInfo) => void) => () => void
 }
 
 const api: ElectronAPI = {
@@ -13,8 +18,10 @@ const api: ElectronAPI = {
   saveFile: (options) => ipcRenderer.invoke('dialog:saveFile', options),
   openPath: (path) => ipcRenderer.invoke('shell:openPath', path),
   showItemInFolder: (path) => ipcRenderer.invoke('shell:showItemInFolder', path),
-  onBackendUrl: (callback) => {
-    ipcRenderer.on('python-backend-url', (_, url) => callback(url))
+  onBackendInfo: (callback) => {
+    const listener = (_: Electron.IpcRendererEvent, info: BackendInfo) => callback(info)
+    ipcRenderer.on('python-backend-info', listener)
+    return () => ipcRenderer.removeListener('python-backend-info', listener)
   }
 }
 

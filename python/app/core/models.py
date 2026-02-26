@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Literal
 from enum import Enum
 
@@ -38,7 +38,15 @@ class GenerateRequest(BaseModel):
     hdr_peak_nits: int = Field(default=1000, ge=200, le=4000)
     hdr_video_peak_nits: int = Field(default=10000, ge=200, le=10000)
     export_format: ExportFormat = ExportFormat.PNG
-    output_directory: str = ""
+    output_directory: str = Field(min_length=1)
+
+    @field_validator("output_directory")
+    @classmethod
+    def _validate_output_directory(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("output_directory must not be empty")
+        return v
 
 
 class PreviewRequest(BaseModel):
@@ -65,7 +73,21 @@ class BatchRequest(BaseModel):
     hdr_peak_nits: int = Field(default=1000, ge=200, le=4000)
     hdr_video_peak_nits: int = Field(default=10000, ge=200, le=10000)
     export_format: ExportFormat = ExportFormat.PNG
-    output_directory: str = ""
+    output_directory: str = Field(min_length=1)
+
+    @field_validator("output_directory")
+    @classmethod
+    def _validate_output_directory(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("output_directory must not be empty")
+        return v
+
+    @model_validator(mode="after")
+    def _validate_apl_range(self) -> "BatchRequest":
+        if self.apl_range_end < self.apl_range_start:
+            raise ValueError("apl_range_end must be >= apl_range_start")
+        return self
 
 
 class BatchResponse(BaseModel):

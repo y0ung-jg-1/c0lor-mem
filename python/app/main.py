@@ -1,21 +1,22 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.modules.test_pattern import router as test_pattern_router, _ws_clients
+from app.security import enforce_ws_token, get_allowed_origins, require_token_header, TOKEN_HEADER
 
 app = FastAPI(title="c0lor-mem Backend", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=get_allowed_origins(),
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", TOKEN_HEADER],
 )
 
 app.include_router(test_pattern_router, prefix="/api/v1/test-pattern")
 
 
-@app.get("/api/v1/health")
+@app.get("/api/v1/health", dependencies=[Depends(require_token_header)])
 async def health():
     return {"status": "ok"}
 
@@ -23,6 +24,8 @@ async def health():
 @app.websocket("/ws/progress")
 async def websocket_progress(websocket: WebSocket):
     """WebSocket endpoint for batch progress updates."""
+    if not await enforce_ws_token(websocket):
+        return
     await websocket.accept()
     _ws_clients.add(websocket)
     try:

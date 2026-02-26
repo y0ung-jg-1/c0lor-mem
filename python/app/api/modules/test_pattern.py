@@ -2,22 +2,29 @@
 
 import io
 import json
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket
 from fastapi.responses import StreamingResponse
 from app.core.models import (
     GenerateRequest, PreviewRequest, GenerateResponse,
     BatchRequest, BatchResponse, BatchStatus,
 )
 from app.core.pattern_generator import generate_pattern_rgba
+from app.security import require_token_header
 from app.services.export_service import export_single
 from app.services.batch_service import (
     run_batch, get_batch_status, cancel_batch, set_progress_callback,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_token_header)])
 
 # Connected WebSocket clients
 _ws_clients: set[WebSocket] = set()
+
+async def _safe_send(ws: WebSocket, message: str) -> None:
+    try:
+        await ws.send_text(message)
+    except Exception:
+        _ws_clients.discard(ws)
 
 
 def _broadcast_progress(batch_id: str, status: BatchStatus) -> None:
@@ -31,14 +38,14 @@ def _broadcast_progress(batch_id: str, status: BatchStatus) -> None:
         "failed": status.failed,
         "current_apl": status.current_apl,
     })
-    disconnected = set()
-    for ws in _ws_clients:
-        try:
-            import asyncio
-            asyncio.get_running_loop().create_task(ws.send_text(message))
-        except Exception:
-            disconnected.add(ws)
-    _ws_clients -= disconnected
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return
+
+    for ws in list(_ws_clients):
+        loop.create_task(_safe_send(ws, message))
 
 
 # Register progress callback

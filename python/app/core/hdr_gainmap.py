@@ -40,7 +40,9 @@ def _generate_gain_map(sdr_img: Image.Image, peak_nits: int) -> Image.Image:
     """
     gm = sdr_img.convert("L")
     w, h = gm.size
-    gm = gm.resize((w // GAINMAP_SCALE, h // GAINMAP_SCALE), Image.LANCZOS)
+    out_w = max(1, w // GAINMAP_SCALE)
+    out_h = max(1, h // GAINMAP_SCALE)
+    gm = gm.resize((out_w, out_h), Image.LANCZOS)
     return gm
 
 

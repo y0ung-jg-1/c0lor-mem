@@ -22,14 +22,19 @@ def _build_srgb_profile() -> bytes:
 
 def _get_icc_profile_path(color_space: ColorSpace) -> str | None:
     """Get path to a bundled ICC profile file, if available."""
-    base = os.path.join(os.path.dirname(__file__), "..", "..", "..", "resources", "icc-profiles")
+    base = os.environ.get("C0LOR_MEM_ICC_DIR", "").strip()
+    if not base:
+        base = os.path.join(os.path.dirname(__file__), "..", "..", "..", "resources", "icc-profiles")
     base = os.path.normpath(base)
     mapping = {
         ColorSpace.REC709: "sRGB IEC61966-2.1.icc",
         ColorSpace.DISPLAY_P3: "Display P3.icc",
         ColorSpace.REC2020: "Rec2020.icc",
     }
-    path = os.path.join(base, mapping.get(color_space, ""))
+    filename = mapping.get(color_space)
+    if not filename:
+        return None
+    path = os.path.join(base, filename)
     return path if os.path.exists(path) else None
 
 

@@ -1,5 +1,6 @@
-import { Form, InputNumber, Select, Slider, Radio, Button, Card, Space, App } from 'antd'
+import { Form, InputNumber, Select, Slider, Radio, Button, Card, Space, App, theme, Divider, Typography } from 'antd'
 import { FolderOpenOutlined, ExportOutlined } from '@ant-design/icons'
+import { Settings2, MonitorPlay } from 'lucide-react'
 import { useTestPatternStore, type Shape, type ColorSpace, type HdrMode, type ExportFormat } from '../../stores/testPatternStore'
 import { useAppStore } from '../../stores/appStore'
 import { apiClient } from '../../api/client'
@@ -15,6 +16,7 @@ export function PatternConfigForm(): React.ReactElement {
   const store = useTestPatternStore()
   const { backendReady } = useAppStore()
   const { message } = App.useApp()
+  const { token } = theme.useToken()
 
   const allowedFormats = FORMAT_BY_HDR[store.hdrMode]
 
@@ -69,7 +71,6 @@ export function PatternConfigForm(): React.ReactElement {
     }
   }
 
-  // Group presets by brand
   const presetOptions = Object.entries(
     devicePresets.reduce(
       (groups, preset) => {
@@ -87,13 +88,32 @@ export function PatternConfigForm(): React.ReactElement {
     }))
   }))
 
+  const cardStyle = {
+    background: token.colorBgContainer,
+    borderRadius: 16,
+    boxShadow: `0 4px 24px -6px ${token.colorText}10`,
+    border: `1px solid ${token.colorBorderSecondary}`,
+    overflow: 'hidden'
+  }
+
   return (
-    <Card style={{ background: '#1f1f1f', border: '1px solid #303030' }}>
+    <Card 
+      style={cardStyle}
+      styles={{
+        header: { padding: '20px 24px', borderBottom: `1px solid ${token.colorBorderSecondary}` },
+        body: { padding: 24 }
+      }}
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Settings2 size={18} color={token.colorPrimary} />
+          <Typography.Text strong style={{ fontSize: 16 }}>基础配置</Typography.Text>
+        </div>
+      }
+    >
       <Form layout="vertical" size="middle">
-        {/* 设备预设 */}
-        <Form.Item label="设备预设">
+        <Form.Item label={<span style={{ fontWeight: 500 }}>设备预设</span>}>
           <Select
-            placeholder="选择设备或手动输入分辨率"
+            placeholder="选择设备自动设置分辨率"
             options={presetOptions}
             onChange={handlePresetChange}
             allowClear
@@ -104,146 +124,125 @@ export function PatternConfigForm(): React.ReactElement {
           />
         </Form.Item>
 
-        {/* 分辨率 */}
-        <Form.Item label="分辨率">
-          <Space>
+        <Form.Item label={<span style={{ fontWeight: 500 }}>画布分辨率</span>}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <InputNumber
-              min={1}
-              max={8192}
-              value={store.width}
+              min={1} max={8192} value={store.width}
               onChange={(v) => v && store.setResolution(v, store.height)}
-              addonAfter="宽"
-              style={{ width: 130 }}
+              addonBefore="宽" style={{ flex: 1 }}
             />
-            <span style={{ color: 'rgba(255,255,255,0.45)' }}>x</span>
+            <span style={{ color: token.colorTextDescription }}>&times;</span>
             <InputNumber
-              min={1}
-              max={8192}
-              value={store.height}
+              min={1} max={8192} value={store.height}
               onChange={(v) => v && store.setResolution(store.width, v)}
-              addonAfter="高"
-              style={{ width: 130 }}
+              addonBefore="高" style={{ flex: 1 }}
             />
-          </Space>
+          </div>
         </Form.Item>
 
-        {/* 形状 */}
-        <Form.Item label="形状">
+        <Form.Item label={<span style={{ fontWeight: 500 }}>目标 APL ({store.aplPercent}%)</span>}>
+          <Slider
+            min={1} max={100} value={store.aplPercent}
+            onChange={(v) => store.setAplPercent(v)}
+            marks={{ 1: '1%', 50: '50%', 100: '100%' }}
+            tooltip={{ formatter: (v) => `${v}%` }}
+          />
+        </Form.Item>
+
+        <Form.Item label={<span style={{ fontWeight: 500 }}>测试区形状</span>}>
           <Radio.Group
             value={store.shape}
             onChange={(e) => store.setShape(e.target.value as Shape)}
-            optionType="button"
-            buttonStyle="solid"
-            options={[
-              { label: '矩形', value: 'rectangle' },
-              { label: '圆形', value: 'circle' }
-            ]}
-          />
+            optionType="button" buttonStyle="solid"
+            style={{ width: '100%' }}
+          >
+            <Radio.Button value="rectangle" style={{ width: '50%', textAlign: 'center' }}>矩形 (Rectangle)</Radio.Button>
+            <Radio.Button value="circle" style={{ width: '50%', textAlign: 'center' }}>圆形 (Circle)</Radio.Button>
+          </Radio.Group>
         </Form.Item>
 
-        {/* APL 滑块 */}
-        <Form.Item label={`APL：${store.aplPercent}%`}>
-          <Slider
-            min={1}
-            max={100}
-            value={store.aplPercent}
-            onChange={(v) => store.setAplPercent(v)}
-            marks={{ 1: '1%', 25: '25%', 50: '50%', 75: '75%', 100: '100%' }}
-          />
-        </Form.Item>
+        <Divider style={{ margin: '24px 0', borderColor: token.colorBorderSecondary }} />
 
-        {/* 色彩空间 */}
-        <Form.Item label="色彩空间">
+        <Typography.Title level={5} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, color: token.colorText }}>
+          <MonitorPlay size={18} color={token.colorPrimary} /> 色彩与动态范围
+        </Typography.Title>
+
+        <Form.Item label={<span style={{ fontWeight: 500 }}>色彩空间</span>}>
           <Radio.Group
             value={store.colorSpace}
             onChange={(e) => store.setColorSpace(e.target.value as ColorSpace)}
-            optionType="button"
-            buttonStyle="solid"
-            options={[
-              { label: 'Rec.709 / sRGB', value: 'rec709' },
-              { label: 'Display P3', value: 'displayP3' },
-              { label: 'Rec.2020', value: 'rec2020' }
-            ]}
-          />
+            optionType="button" buttonStyle="solid"
+            style={{ width: '100%', display: 'flex' }}
+          >
+            <Radio.Button value="rec709" style={{ flex: 1, textAlign: 'center' }}>Rec.709</Radio.Button>
+            <Radio.Button value="displayP3" style={{ flex: 1, textAlign: 'center' }}>Display P3</Radio.Button>
+            <Radio.Button value="rec2020" style={{ flex: 1, textAlign: 'center' }}>Rec.2020</Radio.Button>
+          </Radio.Group>
         </Form.Item>
 
-        {/* HDR 模式 */}
-        <Form.Item label="HDR 模式">
+        <Form.Item label={<span style={{ fontWeight: 500 }}>HDR 模式</span>}>
           <Radio.Group
             value={store.hdrMode}
             onChange={(e) => handleHdrModeChange(e.target.value as HdrMode)}
-            optionType="button"
-            buttonStyle="solid"
-            options={[
-              { label: 'SDR', value: 'none' },
-              { label: 'Ultra HDR', value: 'ultra-hdr' },
-              { label: 'HDR10 PQ', value: 'hdr10-pq' },
-            ]}
-          />
+            optionType="button" buttonStyle="solid"
+            style={{ width: '100%', display: 'flex' }}
+          >
+            <Radio.Button value="none" style={{ flex: 1, textAlign: 'center' }}>SDR</Radio.Button>
+            <Radio.Button value="ultra-hdr" style={{ flex: 1, textAlign: 'center' }}>Ultra HDR</Radio.Button>
+            <Radio.Button value="hdr10-pq" style={{ flex: 1, textAlign: 'center' }}>HDR10 PQ</Radio.Button>
+          </Radio.Group>
         </Form.Item>
 
-        {/* 峰值亮度 - HDR10 PQ 始终显示视频峰值亮度，Ultra HDR 显示图片峰值亮度 */}
         {store.hdrMode === 'hdr10-pq' && (
-          <Form.Item label={`峰值亮度：${store.hdrVideoPeakNits} nits`}>
+          <Form.Item label={<span style={{ fontWeight: 500 }}>视频峰值亮度：{store.hdrVideoPeakNits} nits</span>}>
             <Slider
-              min={200}
-              max={10000}
-              step={100}
-              value={store.hdrVideoPeakNits}
+              min={200} max={10000} step={100} value={store.hdrVideoPeakNits}
               onChange={(v) => store.setHdrVideoPeakNits(v)}
-              marks={{ 1000: '1000', 4000: '4000', 10000: '10000' }}
+              marks={{ 1000: '1k', 4000: '4k', 10000: '10k' }}
             />
           </Form.Item>
         )}
         {store.hdrMode === 'ultra-hdr' && (
-          <Form.Item label={`峰值亮度：${store.hdrPeakNits} nits`}>
+          <Form.Item label={<span style={{ fontWeight: 500 }}>图片峰值亮度：{store.hdrPeakNits} nits</span>}>
             <Slider
-              min={200}
-              max={4000}
-              step={100}
-              value={store.hdrPeakNits}
+              min={200} max={4000} step={100} value={store.hdrPeakNits}
               onChange={(v) => store.setHdrPeakNits(v)}
-              marks={{ 400: '400', 600: '600', 1000: '1000', 1600: '1600', 4000: '4000' }}
+              marks={{ 400: '400', 1000: '1k', 4000: '4k' }}
             />
           </Form.Item>
         )}
 
-        {/* 导出格式 */}
-        <Form.Item label="导出格式">
+        <Divider style={{ margin: '24px 0', borderColor: token.colorBorderSecondary }} />
+
+        <Form.Item label={<span style={{ fontWeight: 500 }}>输出格式</span>}>
           <Radio.Group
             value={store.exportFormat}
             onChange={(e) => store.setExportFormat(e.target.value as ExportFormat)}
-            optionType="button"
-            buttonStyle="solid"
-            options={[
-              { label: 'PNG', value: 'png', disabled: !allowedFormats.includes('png') },
-              { label: 'JPEG', value: 'jpeg', disabled: !allowedFormats.includes('jpeg') },
-              { label: 'HEIF', value: 'heif', disabled: !allowedFormats.includes('heif') },
-              { label: 'H.264', value: 'h264', disabled: !allowedFormats.includes('h264') },
-              { label: 'H.265', value: 'h265', disabled: !allowedFormats.includes('h265') },
-            ]}
-          />
+            optionType="button" buttonStyle="solid"
+          >
+            <Space size={8} wrap>
+              <Radio.Button value="png" disabled={!allowedFormats.includes('png')}>PNG</Radio.Button>
+              <Radio.Button value="jpeg" disabled={!allowedFormats.includes('jpeg')}>JPEG</Radio.Button>
+              <Radio.Button value="heif" disabled={!allowedFormats.includes('heif')}>HEIF</Radio.Button>
+              <Radio.Button value="h264" disabled={!allowedFormats.includes('h264')}>H.264</Radio.Button>
+              <Radio.Button value="h265" disabled={!allowedFormats.includes('h265')}>H.265</Radio.Button>
+            </Space>
+          </Radio.Group>
         </Form.Item>
 
-        {/* 输出目录 */}
-        <Form.Item label="输出目录">
-          <Button icon={<FolderOpenOutlined />} onClick={handleSelectOutputDir}>
-            {store.outputDirectory || '选择文件夹...'}
+        <Form.Item label={<span style={{ fontWeight: 500 }}>保存路径</span>}>
+          <Button icon={<FolderOpenOutlined />} onClick={handleSelectOutputDir} style={{ width: '100%', textAlign: 'left', borderRadius: 8 }}>
+            {store.outputDirectory || '选择输出目录...'}
           </Button>
         </Form.Item>
 
-        {/* 生成按钮 */}
-        <Form.Item>
+        <Form.Item style={{ marginBottom: 0, marginTop: 32 }}>
           <Button
-            type="primary"
-            icon={<ExportOutlined />}
-            size="large"
-            block
-            loading={store.isGenerating}
-            disabled={!backendReady}
-            onClick={handleGenerate}
+            type="primary" icon={<ExportOutlined />} size="large" block
+            loading={store.isGenerating} disabled={!backendReady} onClick={handleGenerate}
+            style={{ height: 48, borderRadius: 12, fontSize: 16, fontWeight: 600, boxShadow: `0 4px 12px ${token.colorPrimary}40` }}
           >
-            生成
+            单张生成
           </Button>
         </Form.Item>
       </Form>

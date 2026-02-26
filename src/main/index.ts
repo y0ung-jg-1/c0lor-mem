@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, Menu, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc-handlers'
@@ -17,7 +17,9 @@ function createWindow(): void {
     backgroundColor: '#141414',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false
     }
   })
 
@@ -26,7 +28,14 @@ function createWindow(): void {
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    try {
+      const target = new URL(details.url)
+      if (target.protocol === 'http:' || target.protocol === 'https:') {
+        shell.openExternal(details.url)
+      }
+    } catch {
+      // Ignore invalid URLs
+    }
     return { action: 'deny' }
   })
 
@@ -44,6 +53,8 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  Menu.setApplicationMenu(null)
+
   registerIpcHandlers()
 
   // Create window first so user sees UI immediately
@@ -53,7 +64,10 @@ app.whenReady().then(async () => {
   pythonBridge = new PythonBridge()
   pythonBridge.start().then(() => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('python-backend-url', pythonBridge!.getBaseUrl())
+      mainWindow.webContents.send('python-backend-info', {
+        url: pythonBridge!.getBaseUrl(),
+        token: pythonBridge!.getAuthToken()
+      })
     }
   }).catch((err) => {
     console.error('Failed to start Python backend:', err)
@@ -63,7 +77,10 @@ app.whenReady().then(async () => {
   if (mainWindow) {
     mainWindow.webContents.on('did-finish-load', () => {
       if (pythonBridge?.getIsRunning()) {
-        mainWindow!.webContents.send('python-backend-url', pythonBridge!.getBaseUrl())
+        mainWindow!.webContents.send('python-backend-info', {
+          url: pythonBridge!.getBaseUrl(),
+          token: pythonBridge!.getAuthToken()
+        })
       }
     })
   }

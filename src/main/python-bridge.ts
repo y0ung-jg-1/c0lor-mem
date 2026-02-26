@@ -1,4 +1,5 @@
 import { ChildProcess, spawn } from 'child_process'
+import { randomBytes } from 'crypto'
 import { createServer } from 'net'
 import { join } from 'path'
 import { app } from 'electron'
@@ -7,6 +8,12 @@ export class PythonBridge {
   private process: ChildProcess | null = null
   private port: number = 0
   private isRunning = false
+  private authToken: string
+
+  constructor() {
+    // Per-launch token used by the renderer to authenticate to the local backend.
+    this.authToken = randomBytes(32).toString('hex')
+  }
 
   /**
    * Find an available port in the range 18100-18200
@@ -63,7 +70,9 @@ export class PythonBridge {
   private async waitForHealth(maxRetries = 30, interval = 500): Promise<boolean> {
     for (let i = 0; i < maxRetries; i++) {
       try {
-        const response = await fetch(`http://127.0.0.1:${this.port}/api/v1/health`)
+        const response = await fetch(`http://127.0.0.1:${this.port}/api/v1/health`, {
+          headers: { 'X-C0lor-Mem-Token': this.authToken }
+        })
         if (response.ok) {
           console.log(`Python backend ready on port ${this.port}`)
           return true
@@ -76,6 +85,26 @@ export class PythonBridge {
     return false
   }
 
+  private getAllowedOriginsEnv(): string {
+    const origins = new Set<string>(['null'])
+    const devRendererUrl = process.env['ELECTRON_RENDERER_URL']
+    if (devRendererUrl) {
+      try {
+        origins.add(new URL(devRendererUrl).origin)
+      } catch {
+        // Ignore invalid URL
+      }
+    }
+    return Array.from(origins).join(',')
+  }
+
+  private getIccProfilesDir(): string {
+    if (app.isPackaged) {
+      return join(process.resourcesPath, 'icc-profiles')
+    }
+    return join(app.getAppPath(), 'resources', 'icc-profiles')
+  }
+
   async start(): Promise<void> {
     this.port = await this.findFreePort()
     console.log(`Starting Python backend on port ${this.port}`)
@@ -83,7 +112,13 @@ export class PythonBridge {
     if (app.isPackaged) {
       // Production: run bundled executable with FFmpeg in PATH
       const ffmpegDir = join(process.resourcesPath, 'ffmpeg')
-      const env = { ...process.env, PATH: `${ffmpegDir}${process.platform === 'win32' ? ';' : ':'}${process.env.PATH}` }
+      const env = {
+        ...process.env,
+        PATH: `${ffmpegDir}${process.platform === 'win32' ? ';' : ':'}${process.env.PATH}`,
+        C0LOR_MEM_AUTH_TOKEN: this.authToken,
+        C0LOR_MEM_ALLOWED_ORIGINS: this.getAllowedOriginsEnv(),
+        C0LOR_MEM_ICC_DIR: this.getIccProfilesDir()
+      }
       this.process = spawn(this.getPythonPath(), ['--port', String(this.port)], {
         stdio: ['pipe', 'pipe', 'pipe'],
         env
@@ -92,9 +127,16 @@ export class PythonBridge {
       // Development: run with system Python
       const pythonPath = this.getPythonPath()
       const appDir = this.getPythonAppDir()
+      const env = {
+        ...process.env,
+        C0LOR_MEM_AUTH_TOKEN: this.authToken,
+        C0LOR_MEM_ALLOWED_ORIGINS: this.getAllowedOriginsEnv(),
+        C0LOR_MEM_ICC_DIR: this.getIccProfilesDir()
+      }
       this.process = spawn(pythonPath, ['-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', String(this.port)], {
         cwd: appDir,
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env
       })
     }
 
@@ -135,6 +177,10 @@ export class PythonBridge {
 
   getBaseUrl(): string {
     return `http://127.0.0.1:${this.port}`
+  }
+
+  getAuthToken(): string {
+    return this.authToken
   }
 
   getIsRunning(): boolean {

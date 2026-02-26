@@ -1,56 +1,102 @@
 import { useAppStore } from '../stores/appStore'
 
 class ApiClient {
-  private getBaseUrl(): string {
-    const url = useAppStore.getState().backendUrl
-    if (!url) throw new Error('Backend not ready')
-    return url
+  private getBackend(): { baseUrl: string; token: string } {
+    const { backendUrl, backendToken } = useAppStore.getState()
+    if (!backendUrl || !backendToken) throw new Error('Backend not ready')
+    return { baseUrl: backendUrl, token: backendToken }
   }
 
-  async health(): Promise<{ status: string }> {
-    const res = await fetch(`${this.getBaseUrl()}/api/v1/health`)
-    return res.json()
+  private async requestJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const { baseUrl, token } = this.getBackend()
+    const headers = new Headers(init.headers)
+    headers.set('X-C0lor-Mem-Token', token)
+
+    const res = await fetch(`${baseUrl}${path}`, { ...init, headers })
+
+    const contentType = res.headers.get('content-type') || ''
+    let body: unknown = null
+    if (contentType.includes('application/json')) {
+      try {
+        body = await res.json()
+      } catch {
+        body = null
+      }
+    } else {
+      try {
+        body = await res.text()
+      } catch {
+        body = null
+      }
+    }
+
+    if (!res.ok) {
+      const detail =
+        typeof body === 'object' && body && 'detail' in body ? (body as { detail?: unknown }).detail : null
+      throw new Error(typeof detail === 'string' ? detail : 'Request failed')
+    }
+
+    return body as T
   }
 
-  async generatePreview(params: Record<string, unknown>): Promise<Blob> {
-    const res = await fetch(`${this.getBaseUrl()}/api/v1/test-pattern/preview`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params)
-    })
+  private async requestBlob(path: string, init: RequestInit = {}): Promise<Blob> {
+    const { baseUrl, token } = this.getBackend()
+    const headers = new Headers(init.headers)
+    headers.set('X-C0lor-Mem-Token', token)
+
+    const res = await fetch(`${baseUrl}${path}`, { ...init, headers })
+    if (!res.ok) {
+      let detail: string | null = null
+      try {
+        const err = (await res.json()) as { detail?: unknown }
+        if (typeof err.detail === 'string') detail = err.detail
+      } catch {
+        // Ignore parse errors
+      }
+      throw new Error(detail || 'Request failed')
+    }
     return res.blob()
   }
 
-  async generate(params: Record<string, unknown>): Promise<{ output_path: string }> {
-    const res = await fetch(`${this.getBaseUrl()}/api/v1/test-pattern/generate`, {
+  async health(): Promise<{ status: string }> {
+    return this.requestJson('/api/v1/health')
+  }
+
+  async generatePreview(params: Record<string, unknown>): Promise<Blob> {
+    return this.requestBlob('/api/v1/test-pattern/preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params)
     })
-    if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.detail || 'Generation failed')
-    }
-    return res.json()
+  }
+
+  async generate(params: Record<string, unknown>): Promise<{ output_path: string }> {
+    return this.requestJson('/api/v1/test-pattern/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    })
   }
 
   async batchGenerate(params: Record<string, unknown>): Promise<{ batch_id: string }> {
-    const res = await fetch(`${this.getBaseUrl()}/api/v1/test-pattern/batch`, {
+    return this.requestJson('/api/v1/test-pattern/batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params)
     })
-    return res.json()
   }
 
   async getBatchStatus(batchId: string): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.getBaseUrl()}/api/v1/test-pattern/batch/${batchId}/status`)
-    return res.json()
+    return this.requestJson(`/api/v1/test-pattern/batch/${batchId}/status`)
   }
 
   getWebSocketUrl(): string {
-    const base = this.getBaseUrl().replace('http', 'ws')
-    return `${base}/ws/progress`
+    const { baseUrl, token } = this.getBackend()
+    const u = new URL(baseUrl)
+    u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'
+    u.pathname = '/ws/progress'
+    u.searchParams.set('token', token)
+    return u.toString()
   }
 }
 

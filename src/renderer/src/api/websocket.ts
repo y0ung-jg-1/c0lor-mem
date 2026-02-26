@@ -16,13 +16,22 @@ let ws: WebSocket | null = null
 let handlers: Set<ProgressHandler> = new Set()
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
+function buildWsUrl(): string | null {
+  const { backendUrl, backendToken } = useAppStore.getState()
+  if (!backendUrl || !backendToken) return null
+
+  const u = new URL(backendUrl)
+  u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'
+  u.pathname = '/ws/progress'
+  u.searchParams.set('token', backendToken)
+  return u.toString()
+}
+
 export function connectWebSocket(): void {
-  const backendUrl = useAppStore.getState().backendUrl
-  if (!backendUrl) return
+  const wsUrl = buildWsUrl()
+  if (!wsUrl) return
 
-  const wsUrl = backendUrl.replace('http', 'ws') + '/ws/progress'
-
-  if (ws?.readyState === WebSocket.OPEN) return
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return
 
   ws = new WebSocket(wsUrl)
 
