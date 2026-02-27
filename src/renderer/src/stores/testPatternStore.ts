@@ -1,9 +1,8 @@
 import { create } from 'zustand'
+import type { Shape, ColorSpace, HdrMode, ExportFormat } from '../types/api'
 
-export type Shape = 'rectangle' | 'circle'
-export type ColorSpace = 'rec709' | 'displayP3' | 'rec2020'
-export type HdrMode = 'none' | 'ultra-hdr' | 'hdr10-pq'
-export type ExportFormat = 'png' | 'jpeg' | 'heif' | 'h264' | 'h265'
+// Re-export types for convenience
+export type { Shape, ColorSpace, HdrMode, ExportFormat }
 
 export interface TestPatternConfig {
   width: number
@@ -53,5 +52,5 @@ export const useTestPatternStore = create<TestPatternState>((set) => ({
   setHdrVideoPeakNits: (hdrVideoPeakNits) => set({ hdrVideoPeakNits }),
   setExportFormat: (exportFormat) => set({ exportFormat }),
   setOutputDirectory: (outputDirectory) => set({ outputDirectory }),
-  setIsGenerating: (isGenerating) => set({ isGenerating })
+  setIsGenerating: (isGenerating) => set({ isGenerating }),
 }))

@@ -49,7 +49,7 @@ export function PatternPreview(): React.ReactElement {
     borderRadius: 16,
     boxShadow: `0 4px 24px -6px ${token.colorText}10`,
     border: `1px solid ${token.colorBorderSecondary}`,
-    overflow: 'hidden'
+    overflow: 'hidden',
   }
 
   return (
@@ -57,35 +57,50 @@ export function PatternPreview(): React.ReactElement {
       style={cardStyle}
       styles={{
         header: { padding: '20px 24px', borderBottom: `1px solid ${token.colorBorderSecondary}` },
-        body: { padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }
+        body: {
+          padding: 24,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 16,
+        },
       }}
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Maximize2 size={18} color={token.colorPrimary} />
-          <Typography.Text strong style={{ fontSize: 16 }}>实时预览</Typography.Text>
+          <Typography.Text strong style={{ fontSize: 16 }}>
+            实时预览
+          </Typography.Text>
         </div>
       }
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-        <Typography.Text type="secondary" style={{ 
-          background: token.colorFillAlter, 
-          padding: '6px 16px', 
-          borderRadius: 20, 
-          fontSize: 13,
-          fontWeight: 500,
-          border: `1px solid ${token.colorBorderSecondary}` 
-        }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}
+      >
+        <Typography.Text
+          type="secondary"
+          style={{
+            background: token.colorFillAlter,
+            padding: '6px 16px',
+            borderRadius: 20,
+            fontSize: 13,
+            fontWeight: 500,
+            border: `1px solid ${token.colorBorderSecondary}`,
+          }}
+        >
           {width} × {height} &nbsp;|&nbsp; APL {aplPercent}%
         </Typography.Text>
       </div>
-      
-      <div style={{ 
-        width: '100%', 
-        display: 'flex', 
-        justifyContent: 'center', 
-        padding: '24px 0',
-        background: `radial-gradient(circle at center, ${token.colorFillAlter} 0%, transparent 100%)`
-      }}>
+
+      <div
+        style={{
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '24px 0',
+          background: `radial-gradient(circle at center, ${token.colorFillAlter} 0%, transparent 100%)`,
+        }}
+      >
         <canvas
           ref={canvasRef}
           style={{
@@ -93,12 +108,15 @@ export function PatternPreview(): React.ReactElement {
             borderRadius: 8,
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
             maxWidth: '100%',
-            transition: 'all 0.4s cubic-bezier(0.22, 1, 0.36, 1)'
+            transition: 'all 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
           }}
         />
       </div>
-      
-      <Typography.Text type="secondary" style={{ fontSize: 13, textAlign: 'center', marginTop: 16 }}>
+
+      <Typography.Text
+        type="secondary"
+        style={{ fontSize: 13, textAlign: 'center', marginTop: 16 }}
+      >
         预览仅代表 SDR 效果与窗口占比，真实的 HDR 亮度与色域由后端独立生成引擎负责处理。
       </Typography.Text>
     </Card>

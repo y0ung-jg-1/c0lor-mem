@@ -3,13 +3,26 @@ out/
 dist/
 *.tsbuildinfo
 
+# Local agent tooling
+.claude/
+
 # Python
 python/__pycache__/
 python/app/__pycache__/
 python/**/__pycache__/
 python/*.egg-info/
 python/.venv/
+python/.pytest_cache/
+python/build/
+python/dist/
 *.pyc
+
+# Generated test pattern outputs
+APL_*.png
+APL_*.jpg
+APL_*.jpeg
+APL_*.heif
+APL_*.mp4
 
 # IDE
 .idea/

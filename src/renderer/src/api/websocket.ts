@@ -1,69 +1,36 @@
-import { useAppStore } from '../stores/appStore'
+/**
+ * WebSocket module - provides convenience functions using WebSocketManager.
+ * @deprecated Use WebSocketManager directly for better control.
+ */
 
-export interface BatchProgress {
-  type: 'batch_progress'
-  batch_id: string
-  status: 'running' | 'completed' | 'failed' | 'cancelled'
-  total: number
-  completed: number
-  failed: number
-  current_apl: number | null
-}
+import { WebSocketManager, getWebSocketManager } from './WebSocketManager'
+import type { BatchProgress } from './WebSocketManager'
 
-type ProgressHandler = (progress: BatchProgress) => void
+// Re-export types for backward compatibility
+export type { BatchProgress }
 
-let ws: WebSocket | null = null
-let handlers: Set<ProgressHandler> = new Set()
-let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-
-function buildWsUrl(): string | null {
-  const { backendUrl, backendToken } = useAppStore.getState()
-  if (!backendUrl || !backendToken) return null
-
-  const u = new URL(backendUrl)
-  u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'
-  u.pathname = '/ws/progress'
-  u.searchParams.set('token', backendToken)
-  return u.toString()
-}
-
+/**
+ * Connect to the WebSocket server.
+ */
 export function connectWebSocket(): void {
-  const wsUrl = buildWsUrl()
-  if (!wsUrl) return
-
-  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return
-
-  ws = new WebSocket(wsUrl)
-
-  ws.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data) as BatchProgress
-      if (data.type === 'batch_progress') {
-        handlers.forEach((h) => h(data))
-      }
-    } catch {
-      // Ignore invalid messages
-    }
-  }
-
-  ws.onclose = () => {
-    // Reconnect after delay
-    if (reconnectTimer) clearTimeout(reconnectTimer)
-    reconnectTimer = setTimeout(connectWebSocket, 3000)
-  }
-
-  ws.onerror = () => {
-    ws?.close()
-  }
+  getWebSocketManager().connect()
 }
 
-export function onBatchProgress(handler: ProgressHandler): () => void {
-  handlers.add(handler)
-  return () => handlers.delete(handler)
+/**
+ * Subscribe to batch progress updates.
+ * @param handler - Callback function for progress updates
+ * @returns Unsubscribe function
+ */
+export function onBatchProgress(handler: (progress: BatchProgress) => void): () => void {
+  return getWebSocketManager().subscribe(handler)
 }
 
+/**
+ * Send a cancel command for a batch job.
+ */
 export function cancelBatch(batchId: string): void {
-  if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(`cancel:${batchId}`)
-  }
+  getWebSocketManager().sendCancel(batchId)
 }
+
+// Re-export WebSocketManager for direct access
+export { WebSocketManager, getWebSocketManager }

@@ -1,4 +1,13 @@
 import { useAppStore } from '../stores/appStore'
+import type {
+  GenerateRequest,
+  PreviewRequest,
+  BatchRequest,
+  BatchStatus,
+  BatchResponse,
+  HealthResponse,
+  GenerateResponse,
+} from '../types/api'
 
 class ApiClient {
   private getBackend(): { baseUrl: string; token: string } {
@@ -15,7 +24,7 @@ class ApiClient {
     const res = await fetch(`${baseUrl}${path}`, { ...init, headers })
 
     const contentType = res.headers.get('content-type') || ''
-    let body: unknown = null
+    let body: unknown
     if (contentType.includes('application/json')) {
       try {
         body = await res.json()
@@ -32,7 +41,9 @@ class ApiClient {
 
     if (!res.ok) {
       const detail =
-        typeof body === 'object' && body && 'detail' in body ? (body as { detail?: unknown }).detail : null
+        typeof body === 'object' && body && 'detail' in body
+          ? (body as { detail?: unknown }).detail
+          : null
       throw new Error(typeof detail === 'string' ? detail : 'Request failed')
     }
 
@@ -58,35 +69,35 @@ class ApiClient {
     return res.blob()
   }
 
-  async health(): Promise<{ status: string }> {
+  async health(): Promise<HealthResponse> {
     return this.requestJson('/api/v1/health')
   }
 
-  async generatePreview(params: Record<string, unknown>): Promise<Blob> {
+  async generatePreview(params: PreviewRequest): Promise<Blob> {
     return this.requestBlob('/api/v1/test-pattern/preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params)
+      body: JSON.stringify(params),
     })
   }
 
-  async generate(params: Record<string, unknown>): Promise<{ output_path: string }> {
+  async generate(params: GenerateRequest): Promise<GenerateResponse> {
     return this.requestJson('/api/v1/test-pattern/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params)
+      body: JSON.stringify(params),
     })
   }
 
-  async batchGenerate(params: Record<string, unknown>): Promise<{ batch_id: string }> {
+  async batchGenerate(params: BatchRequest): Promise<BatchResponse> {
     return this.requestJson('/api/v1/test-pattern/batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params)
+      body: JSON.stringify(params),
     })
   }
 
-  async getBatchStatus(batchId: string): Promise<Record<string, unknown>> {
+  async getBatchStatus(batchId: string): Promise<BatchStatus> {
     return this.requestJson(`/api/v1/test-pattern/batch/${batchId}/status`)
   }
 

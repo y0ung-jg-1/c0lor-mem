@@ -12,10 +12,11 @@ function App(): React.ReactElement {
         token: {
           colorPrimary: '#1668dc',
           borderRadius: 8,
-          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+          fontFamily:
+            "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
           colorBgContainer: theme === 'dark' ? '#141414' : '#ffffff',
           colorBgElevated: theme === 'dark' ? '#1f1f1f' : '#ffffff',
-        }
+        },
       }}
     >
       <AntApp>

@@ -3,6 +3,23 @@ Core pattern generator: creates APL test pattern images.
 
 Generates black background images with white shapes (rectangle or circle)
 at specified APL (Average Picture Level) percentages.
+
+RELATIONSHIP TO FRONTEND:
+The frontend counterpart is `src/renderer/src/utils/pattern-math.ts`, which uses
+floating-point calculations for Canvas-based preview rendering.
+
+WHY INTEGER HERE:
+PIL (Pillow) requires integer coordinates for pixel-perfect image generation.
+This module rounds the calculations to produce exact pixel values for the
+final output images.
+
+WHY FLOATING-POINT IN FRONTEND:
+Canvas API accepts fractional pixel values and handles sub-pixel rendering,
+allowing for smooth preview visualization.
+
+FORMULAS:
+- Rectangle: scale = sqrt(APL/100), dimensions = screen_size * scale
+- Circle: radius = sqrt(APL * width * height / (100 * PI))
 """
 
 import math

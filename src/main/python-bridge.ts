@@ -3,6 +3,8 @@ import { randomBytes } from 'crypto'
 import { createServer } from 'net'
 import { join } from 'path'
 import { app } from 'electron'
+import { logger } from './logger'
+import { CONFIG } from '../shared/config'
 
 export class PythonBridge {
   private process: ChildProcess | null = null
@@ -16,13 +18,17 @@ export class PythonBridge {
   }
 
   /**
-   * Find an available port in the range 18100-18200
+   * Find an available port in the configured range
    */
   private findFreePort(): Promise<number> {
     return new Promise((resolve, reject) => {
       const tryPort = (port: number): void => {
-        if (port > 18200) {
-          reject(new Error('No free port found in range 18100-18200'))
+        if (port > CONFIG.PORT_RANGE.MAX) {
+          reject(
+            new Error(
+              `No free port found in range ${CONFIG.PORT_RANGE.MIN}-${CONFIG.PORT_RANGE.MAX}`
+            )
+          )
           return
         }
         const server = createServer()
@@ -31,7 +37,7 @@ export class PythonBridge {
         })
         server.on('error', () => tryPort(port + 1))
       }
-      tryPort(18100)
+      tryPort(CONFIG.PORT_RANGE.MIN)
     })
   }
 
@@ -45,14 +51,17 @@ export class PythonBridge {
       return join(process.resourcesPath, 'python-backend', `c0lor-mem-backend${ext}`)
     }
     // In development, prefer the project venv
-    const venvPython = process.platform === 'win32'
-      ? join(app.getAppPath(), 'python', '.venv', 'Scripts', 'python.exe')
-      : join(app.getAppPath(), 'python', '.venv', 'bin', 'python')
+    const venvPython =
+      process.platform === 'win32'
+        ? join(app.getAppPath(), 'python', '.venv', 'Scripts', 'python.exe')
+        : join(app.getAppPath(), 'python', '.venv', 'bin', 'python')
 
     try {
       const fs = require('fs')
       if (fs.existsSync(venvPython)) return venvPython
-    } catch { /* fall through */ }
+    } catch {
+      /* fall through */
+    }
 
     return process.platform === 'win32' ? 'python' : 'python3'
   }
@@ -67,14 +76,17 @@ export class PythonBridge {
   /**
    * Poll the /health endpoint until ready
    */
-  private async waitForHealth(maxRetries = 30, interval = 500): Promise<boolean> {
+  private async waitForHealth(
+    maxRetries = CONFIG.HEALTH_CHECK.MAX_RETRIES,
+    interval = CONFIG.HEALTH_CHECK.INTERVAL_MS
+  ): Promise<boolean> {
     for (let i = 0; i < maxRetries; i++) {
       try {
         const response = await fetch(`http://127.0.0.1:${this.port}/api/v1/health`, {
-          headers: { 'X-C0lor-Mem-Token': this.authToken }
+          headers: { 'X-C0lor-Mem-Token': this.authToken },
         })
         if (response.ok) {
-          console.log(`Python backend ready on port ${this.port}`)
+          logger.info(`Python backend ready on port ${this.port}`)
           return true
         }
       } catch {
@@ -107,7 +119,7 @@ export class PythonBridge {
 
   async start(): Promise<void> {
     this.port = await this.findFreePort()
-    console.log(`Starting Python backend on port ${this.port}`)
+    logger.info(`Starting Python backend on port ${this.port}`)
 
     if (app.isPackaged) {
       // Production: run bundled executable with FFmpeg in PATH
@@ -117,11 +129,11 @@ export class PythonBridge {
         PATH: `${ffmpegDir}${process.platform === 'win32' ? ';' : ':'}${process.env.PATH}`,
         C0LOR_MEM_AUTH_TOKEN: this.authToken,
         C0LOR_MEM_ALLOWED_ORIGINS: this.getAllowedOriginsEnv(),
-        C0LOR_MEM_ICC_DIR: this.getIccProfilesDir()
+        C0LOR_MEM_ICC_DIR: this.getIccProfilesDir(),
       }
       this.process = spawn(this.getPythonPath(), ['--port', String(this.port)], {
         stdio: ['pipe', 'pipe', 'pipe'],
-        env
+        env,
       })
     } else {
       // Development: run with system Python
@@ -131,31 +143,35 @@ export class PythonBridge {
         ...process.env,
         C0LOR_MEM_AUTH_TOKEN: this.authToken,
         C0LOR_MEM_ALLOWED_ORIGINS: this.getAllowedOriginsEnv(),
-        C0LOR_MEM_ICC_DIR: this.getIccProfilesDir()
+        C0LOR_MEM_ICC_DIR: this.getIccProfilesDir(),
       }
-      this.process = spawn(pythonPath, ['-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', String(this.port)], {
-        cwd: appDir,
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env
-      })
+      this.process = spawn(
+        pythonPath,
+        ['-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', String(this.port)],
+        {
+          cwd: appDir,
+          stdio: ['pipe', 'pipe', 'pipe'],
+          env,
+        }
+      )
     }
 
     this.process.stdout?.on('data', (data) => {
-      console.log(`[Python] ${data.toString().trim()}`)
+      logger.info(`[Python] ${data.toString().trim()}`)
     })
 
     this.process.stderr?.on('data', (data) => {
-      console.log(`[Python:err] ${data.toString().trim()}`)
+      logger.error(`[Python:err] ${data.toString().trim()}`)
     })
 
     this.process.on('exit', (code) => {
-      console.log(`Python process exited with code ${code}`)
+      logger.info(`Python process exited with code ${code}`)
       this.isRunning = false
     })
 
     const healthy = await this.waitForHealth()
     if (!healthy) {
-      console.error('Python backend failed to start')
+      logger.error('Python backend failed to start')
       this.stop()
       throw new Error('Python backend failed to start within timeout')
     }

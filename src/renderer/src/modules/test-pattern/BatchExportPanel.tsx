@@ -5,7 +5,12 @@ import { Zap, Layers } from 'lucide-react'
 import { useTestPatternStore } from '../../stores/testPatternStore'
 import { useAppStore } from '../../stores/appStore'
 import { apiClient } from '../../api/client'
-import { connectWebSocket, onBatchProgress, cancelBatch, type BatchProgress } from '../../api/websocket'
+import {
+  connectWebSocket,
+  onBatchProgress,
+  cancelBatch,
+  type BatchProgress,
+} from '../../api/websocket'
 
 export function BatchExportPanel(): React.ReactElement {
   const store = useTestPatternStore()
@@ -97,7 +102,7 @@ export function BatchExportPanel(): React.ReactElement {
     borderRadius: 16,
     boxShadow: `0 4px 24px -6px ${token.colorText}10`,
     border: `1px solid ${token.colorBorderSecondary}`,
-    overflow: 'hidden'
+    overflow: 'hidden',
   }
 
   return (
@@ -105,37 +110,71 @@ export function BatchExportPanel(): React.ReactElement {
       style={cardStyle}
       styles={{
         header: { padding: '20px 24px', borderBottom: `1px solid ${token.colorBorderSecondary}` },
-        body: { padding: 24 }
+        body: { padding: 24 },
       }}
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Layers size={18} color={token.colorPrimary} />
-          <Typography.Text strong style={{ fontSize: 16 }}>批量序列导出</Typography.Text>
+          <Typography.Text strong style={{ fontSize: 16 }}>
+            批量序列导出
+          </Typography.Text>
         </div>
       }
     >
       <Form layout="vertical" size="middle">
         <Form.Item label={<span style={{ fontWeight: 500 }}>APL 渐变范围 (%)</span>}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <InputNumber min={1} max={100} value={aplStart} onChange={(v) => v && setAplStart(v)} style={{ width: 80 }} />
+            <InputNumber
+              min={1}
+              max={100}
+              value={aplStart}
+              onChange={(v) => v && setAplStart(v)}
+              style={{ width: 80 }}
+            />
             <span style={{ color: token.colorTextDescription }}>至</span>
-            <InputNumber min={1} max={100} value={aplEnd} onChange={(v) => v && setAplEnd(v)} style={{ width: 80 }} />
+            <InputNumber
+              min={1}
+              max={100}
+              value={aplEnd}
+              onChange={(v) => v && setAplEnd(v)}
+              style={{ width: 80 }}
+            />
             <span style={{ color: token.colorTextDescription }}>步长</span>
-            <InputNumber min={1} max={99} value={aplStep} onChange={(v) => v && setAplStep(v)} style={{ width: 70 }} />
+            <InputNumber
+              min={1}
+              max={99}
+              value={aplStep}
+              onChange={(v) => v && setAplStep(v)}
+              style={{ width: 70 }}
+            />
           </div>
-          <Typography.Text type="secondary" style={{ display: 'block', marginTop: 12, fontSize: 13 }}>
+          <Typography.Text
+            type="secondary"
+            style={{ display: 'block', marginTop: 12, fontSize: 13 }}
+          >
             共计 {totalImages} 张目标图片
           </Typography.Text>
         </Form.Item>
 
         <Form.Item label={<span style={{ fontWeight: 500 }}>保存路径</span>}>
-          <Button icon={<FolderOpenOutlined />} onClick={handleSelectOutputDir} style={{ width: '100%', textAlign: 'left', borderRadius: 8 }}>
+          <Button
+            icon={<FolderOpenOutlined />}
+            onClick={handleSelectOutputDir}
+            style={{ width: '100%', textAlign: 'left', borderRadius: 8 }}
+          >
             {store.outputDirectory || '选择文件夹...'}
           </Button>
         </Form.Item>
 
         {progress && isRunning && (
-          <div style={{ background: token.colorFillAlter, padding: 16, borderRadius: 12, marginBottom: 24 }}>
+          <div
+            style={{
+              background: token.colorFillAlter,
+              padding: 16,
+              borderRadius: 12,
+              marginBottom: 24,
+            }}
+          >
             <Progress
               percent={percent}
               status={progress.status === 'running' ? 'active' : 'normal'}
@@ -146,7 +185,10 @@ export function BatchExportPanel(): React.ReactElement {
               }}
             />
             {progress.current_apl !== null && (
-              <Typography.Text type="secondary" style={{ display: 'block', marginTop: 8, fontSize: 13 }}>
+              <Typography.Text
+                type="secondary"
+                style={{ display: 'block', marginTop: 8, fontSize: 13 }}
+              >
                 正在生成 APL {progress.current_apl}%...
               </Typography.Text>
             )}
@@ -161,12 +203,19 @@ export function BatchExportPanel(): React.ReactElement {
               disabled={!backendReady || isRunning}
               onClick={handleStartBatch}
               style={{
-                height: 44, borderRadius: 8, fontWeight: 500, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                height: 44,
+                borderRadius: 8,
+                fontWeight: 500,
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
                 background: !isRunning ? token.colorWarning : undefined,
                 borderColor: !isRunning ? token.colorWarning : undefined,
               }}
             >
-              {!isRunning && <Zap size={16} />} 
+              {!isRunning && <Zap size={16} />}
               开始批量导出
             </Button>
             {isRunning && (

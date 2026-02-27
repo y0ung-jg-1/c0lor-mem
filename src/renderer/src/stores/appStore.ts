@@ -25,9 +25,10 @@ export const useAppStore = create<AppState>((set) => ({
   theme: getInitialTheme(),
   setBackendInfo: (backendUrl, backendToken) => set({ backendUrl, backendToken }),
   setBackendReady: (ready) => set({ backendReady: ready }),
-  toggleTheme: () => set((state) => {
-    const newTheme = state.theme === 'dark' ? 'light' : 'dark'
-    localStorage.setItem('c0lor-mem-theme', newTheme)
-    return { theme: newTheme }
-  })
+  toggleTheme: () =>
+    set((state) => {
+      const newTheme = state.theme === 'dark' ? 'light' : 'dark'
+      localStorage.setItem('c0lor-mem-theme', newTheme)
+      return { theme: newTheme }
+    }),
 }))
